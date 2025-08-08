@@ -5,59 +5,86 @@ import asyncio
 from datetime import time
 from zoneinfo import ZoneInfo
 from aiohttp import web
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, ContextTypes
+)
 
-# --- ENV VARS ---
+# ===== ENV =====
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TZ = ZoneInfo(os.environ.get("TIMEZONE", "Europe/Tallinn"))
 ADMIN_ID = int(os.environ.get("ADMIN_CHAT_ID", "0"))
 
-# --- LOAD MESSAGES ---
+# ===== MESSAGES =====
 with open("messages.yaml", "r", encoding="utf-8") as f:
-    MSG = yaml.safe_load(f)
+    MSG = yaml.safe_load(f) or {}
 
-# --- COMMAND HANDLERS ---
-async def start(update, context):
-    await update.message.reply_text("Bot is alive.")
+AFFS = MSG.get("affirmations", ["Stay sharp."])
+MOTS = MSG.get("motivations", ["Move."])
+WEEKLY = MSG.get("weekly", "Weekly recap time.")
 
-# --- SCHEDULED TASKS ---
-async def send_affirmation(context):
-    await context.bot.send_message(ADMIN_ID, random.choice(MSG.get("affirmations", ["Stay sharp."])))
+# ===== COMMANDS =====
+async def cmd_start(update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Bot is alive.\n\nCommands:\n/affirmation\n/motivate\n/help")
 
-async def send_motivation(context):
-    await context.bot.send_message(ADMIN_ID, random.choice(MSG.get("motivations", ["Move."])))
+async def cmd_help(update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Commands:\n"
+        "/affirmation – send one now\n"
+        "/motivate – send one now\n"
+        "/help – this message"
+    )
 
-async def send_weekly_recap(context):
-    await context.bot.send_message(ADMIN_ID, MSG.get("weekly", "Weekly recap time."))
+async def cmd_affirmation(update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(random.choice(AFFS))
 
-# --- TELEGRAM BOT LOOP ---
+async def cmd_motivate(update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(random.choice(MOTS))
+
+# ===== SCHEDULED JOBS =====
+async def send_affirmation(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(ADMIN_ID, random.choice(AFFS))
+
+async def send_motivation(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(ADMIN_ID, random.choice(MOTS))
+
+async def send_weekly_recap(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(ADMIN_ID, WEEKLY)
+
+# ===== TELEGRAM BOT LOOP =====
 async def run_bot():
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
 
+    # command handlers
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("affirmation", cmd_affirmation))
+    app.add_handler(CommandHandler("motivate", cmd_motivate))
+
+    # schedules
     jq = app.job_queue
     jq.run_daily(send_affirmation, time=time(6, 0, tzinfo=TZ), name="daily_aff")
     jq.run_daily(send_motivation, time=time(13, 0, tzinfo=TZ), name="daily_motivate")
     jq.run_daily(send_weekly_recap, time=time(20, 0, tzinfo=TZ), days=(6,), name="weekly_recap")
 
+    # start polling + stay alive
     await app.initialize()
     await app.start()
     await app.updater.start_polling()
-    await asyncio.Event().wait()  # Keeps the bot alive
+    await asyncio.Event().wait()
 
-# --- HEALTHCHECK WEB SERVER ---
+# ===== HEALTHCHECK WEB SERVER (for Render Web Service) =====
 async def run_web():
     async def health(_):
         return web.json_response({"status": "ok"})
-    app = web.Application()
-    app.router.add_get("/health", health)
+    webapp = web.Application()
+    webapp.router.add_get("/health", health)
     port = int(os.environ.get("PORT", "10000"))
-    runner = web.AppRunner(app)
+    runner = web.AppRunner(webapp)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-# --- MAIN ---
+# ===== MAIN =====
 async def main():
     await asyncio.gather(run_bot(), run_web())
 
