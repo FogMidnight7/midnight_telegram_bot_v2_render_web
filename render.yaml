@@ -1,15 +1,17 @@
 services:
   - type: web
     name: midnight-telegram-bot
-    env: python
-    region: frankfurt
-    plan: free
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: python main.py
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TIMEZONE
         value: Europe/Tallinn
       - key: SUBSCRIBERS_FILE
         value: subscribers.json
+      - key: ADMIN_CHAT_ID
+        sync: false
