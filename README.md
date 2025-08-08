@@ -13,3 +13,5 @@ Runs on Render's free **Web Service** by exposing a tiny web server alongside th
    - TIMEZONE = Europe/Tallinn
    - SUBSCRIBERS_FILE = subscribers.json
 7) Deploy. Check `/health` path for a JSON status.
+
+removed zip file
