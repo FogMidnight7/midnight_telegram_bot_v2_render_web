@@ -9,7 +9,7 @@ Runs on Render's free **Web Service** by exposing a tiny web server alongside th
 4) Build Command: `pip install -r requirements.txt`
 5) Start Command: `python main.py`
 6) Environment:
-   - TELEGRAM_BOT_TOKEN = 8032091198:AAFFKFEg3LTIXgwmSoP-zrDq_4W9ltWEV5o
+   - TELEGRAM_BOT_TOKEN = your_token_here
    - TIMEZONE = Europe/Tallinn
    - SUBSCRIBERS_FILE = subscribers.json
 7) Deploy. Check `/health` path for a JSON status.
