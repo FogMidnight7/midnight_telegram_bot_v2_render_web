@@ -78,9 +78,6 @@ async def cmd_affirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_motivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(random.choice(MOTS))
 
-async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id=chat_id, text=f"Chat ID: {chat_id}")
 
 # /broadcast accepts free text after the command OR forwards the replied message text/caption
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,7 +145,6 @@ async def run_bot():
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("affirmation", cmd_affirmation))
     app.add_handler(CommandHandler("motivate", cmd_motivate))
-    app.add_handler(CommandHandler("getid", cmd_getid))
     app.add_handler(CommandHandler("broadcast", cmd_broadcast))
 
     # schedules (requires python-telegram-bot[job-queue] in requirements.txt)
