@@ -60,20 +60,18 @@ async def run_bot():
     app.add_handler(CommandHandler("affirmation", cmd_affirmation))
     app.add_handler(CommandHandler("motivate", cmd_motivate))
 
-# === Temporary command to get chat ID ===
-async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id=chat_id, text=f"Chat ID: {chat_id}")
+    # === Temporary command to get chat ID ===
+    async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        chat_id = update.effective_chat.id
+        await context.bot.send_message(chat_id=chat_id, text=f"Chat ID: {chat_id}")
 
-app.add_handler(CommandHandler("getid", cmd_getid))
+    app.add_handler(CommandHandler("getid", cmd_getid))
 
-
-# schedules
-jq = app.job_queue
-jq.run_daily(send_affirmation, time=time(6, 0, tzinfo=TZ), name="daily_aff")
-jq.run_daily(send_motivation, time=time(13, 0, tzinfo=TZ), name="daily_motivate")
-jq.run_daily(send_weekly_recap, time=time(20, 0, tzinfo=TZ), days=(6,), name="weekly_recap")
-
+    # schedules
+    jq = app.job_queue
+    jq.run_daily(send_affirmation, time=time(6, 0, tzinfo=TZ), name="daily_aff")
+    jq.run_daily(send_motivation, time=time(13, 0, tzinfo=TZ), name="daily_motivate")
+    jq.run_daily(send_weekly_recap, time=time(20, 0, tzinfo=TZ), days=(6,), name="weekly_recap")
 
     # start polling + stay alive
     await app.initialize()
