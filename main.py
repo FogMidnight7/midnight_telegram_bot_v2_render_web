@@ -31,12 +31,8 @@ def must_get(key: str) -> str:
 
 TOKEN = must_get("TELEGRAM_BOT_TOKEN")
 TZ = ZoneInfo(os.environ.get("TIMEZONE", "Europe/Tallinn"))
-
-# Admin (optional DM fallback)
 ADMIN_ID = int(os.environ.get("ADMIN_CHAT_ID", "0"))
 
-# Primary target = Tier-3 channel (must be -100…)
-# We fall back to ADMIN_ID if FOGWALKERS_TIER3_ID is not set, but log a warning.
 if os.environ.get("FOGWALKERS_TIER3_ID"):
     TARGET_ID = int(os.environ["FOGWALKERS_TIER3_ID"])
 else:
@@ -63,7 +59,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Bot is alive.\n\nCommands:\n"
         "/affirmation – send one now\n"
         "/motivate – send one now\n"
-        "/broadcast – DM-only test to Tier-3\n"
+        "/broadcast <text> – post to Tier-3\n"
         "/help – this message"
     )
 
@@ -72,7 +68,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Commands:\n"
         "/affirmation – send one now\n"
         "/motivate – send one now\n"
-        "/broadcast – DM-only test to Tier-3\n"
+        "/broadcast <text> – post to Tier-3 (or reply to a message and send /broadcast)\n"
         "/help – this message"
     )
 
@@ -82,16 +78,41 @@ async def cmd_affirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_motivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(random.choice(MOTS))
 
-# Temporary: get the chat ID of where the command was sent
 async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     await context.bot.send_message(chat_id=chat_id, text=f"Chat ID: {chat_id}")
 
-# DM -> posts into Tier-3 channel (TARGET_ID), confirms in DM
+# /broadcast accepts free text after the command OR forwards the replied message text/caption
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Usage:
+      /broadcast Your message here
+    Or:
+      reply to any message with /broadcast (it will forward the replied text/caption)
+    """
     try:
-        log.info("[BOT] /broadcast invoked by %s in chat %s", update.effective_user.id if update.effective_user else "?", update.effective_chat.id if update.effective_chat else "?")
-        await context.bot.send_message(chat_id=TARGET_ID, text="🕯️ Test broadcast from Midnight.")
+        # Prefer args after the command
+        text = " ".join(context.args).strip() if context.args else ""
+
+        # If no args, but user replied to a message, pick reply text/caption
+        if not text and update.message and update.message.reply_to_message:
+            replied = update.message.reply_to_message
+            if replied.text and replied.text.strip():
+                text = replied.text.strip()
+            elif replied.caption and replied.caption.strip():
+                text = replied.caption.strip()
+
+        # Final fallback
+        if not text:
+            text = "🕯️ Test broadcast from Midnight."
+
+        log.info("[BOT] /broadcast by %s in chat %s → '%s'",
+                 update.effective_user.id if update.effective_user else "?",
+                 update.effective_chat.id if update.effective_chat else "?",
+                 text)
+
+        await context.bot.send_message(chat_id=TARGET_ID, text=text)
+
         if update.message:
             await update.message.reply_text("✅ Sent to Tier-3 channel.")
     except Exception as e:
@@ -130,7 +151,7 @@ async def run_bot():
     app.add_handler(CommandHandler("getid", cmd_getid))
     app.add_handler(CommandHandler("broadcast", cmd_broadcast))
 
-    # schedules (requires python-telegram-bot[job-queue])
+    # schedules (requires python-telegram-bot[job-queue] in requirements.txt)
     jq = app.job_queue
     jq.run_daily(send_affirmation, time=time(6, 0, tzinfo=TZ), name="daily_aff")
     jq.run_daily(send_motivation, time=time(13, 0, tzinfo=TZ), name="daily_motivate")
