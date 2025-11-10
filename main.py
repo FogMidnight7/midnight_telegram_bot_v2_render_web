@@ -60,6 +60,13 @@ async def run_bot():
     app.add_handler(CommandHandler("affirmation", cmd_affirmation))
     app.add_handler(CommandHandler("motivate", cmd_motivate))
 
+# === Temporary command to get chat ID ===
+async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    await update.message.reply_text(f"Chat ID: {chat_id}")
+
+app.add_handler(CommandHandler("getid", cmd_getid))
+
     # schedules
     jq = app.job_queue
     jq.run_daily(send_affirmation, time=time(6, 0, tzinfo=TZ), name="daily_aff")
