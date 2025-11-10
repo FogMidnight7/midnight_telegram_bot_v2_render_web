@@ -83,6 +83,14 @@ async def run_bot():
     await app.updater.start_polling()
     await asyncio.Event().wait()
 
+# Quick broadcast test (temporary)
+async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    channel_id = int(os.environ["FOGWALKERS_TIER3_ID"])
+    await context.bot.send_message(chat_id=channel_id, text="🕯️ Test broadcast from Midnight.")
+    await update.message.reply_text("✅ Sent to Tier-3 channel.")
+
+app.add_handler(CommandHandler("broadcast", cmd_broadcast))
+
 # ===== HEALTHCHECK WEB SERVER (for Render Web Service) =====
 async def run_web():
     async def health(_):
