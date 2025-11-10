@@ -5,8 +5,12 @@ import asyncio
 from datetime import time
 from zoneinfo import ZoneInfo
 from aiohttp import web
+
+from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, ContextTypes
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
 )
 
 # ===== ENV =====
