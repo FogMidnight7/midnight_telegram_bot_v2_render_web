@@ -16,7 +16,10 @@ from telegram.ext import (
 # ===== ENV =====
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TZ = ZoneInfo(os.environ.get("TIMEZONE", "Europe/Tallinn"))
+
+# Admin DM fallback (optional), but primary target is Tier-3 channel:
 ADMIN_ID = int(os.environ.get("ADMIN_CHAT_ID", "0"))
+TARGET_ID = int(os.environ.get("FOGWALKERS_TIER3_ID", str(ADMIN_ID)))  # <- Tier-3 channel (-100...)
 
 # ===== MESSAGES =====
 with open("messages.yaml", "r", encoding="utf-8") as f:
@@ -27,51 +30,64 @@ MOTS = MSG.get("motivations", ["Move."])
 WEEKLY = MSG.get("weekly", "Weekly recap time.")
 
 # ===== COMMANDS =====
-async def cmd_start(update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot is alive.\n\nCommands:\n/affirmation\n/motivate\n/help")
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Bot is alive.\n\nCommands:\n"
+        "/affirmation – send one now\n"
+        "/motivate – send one now\n"
+        "/broadcast – DM-only test to Tier-3\n"
+        "/help – this message"
+    )
 
-async def cmd_help(update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Commands:\n"
         "/affirmation – send one now\n"
         "/motivate – send one now\n"
+        "/broadcast – DM-only test to Tier-3\n"
         "/help – this message"
     )
 
-async def cmd_affirmation(update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_affirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(random.choice(AFFS))
 
-async def cmd_motivate(update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_motivate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(random.choice(MOTS))
+
+# Temporary: get the chat ID of where the command was sent
+async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    await context.bot.send_message(chat_id=chat_id, text=f"Chat ID: {chat_id}")
+
+# DM -> posts into Tier-3 channel (TARGET_ID), confirms in DM
+async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=TARGET_ID, text="🕯️ Test broadcast from Midnight.")
+    if update.message:
+        await update.message.reply_text("✅ Sent to Tier-3 channel.")
 
 # ===== SCHEDULED JOBS =====
 async def send_affirmation(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(ADMIN_ID, random.choice(AFFS))
+    await context.bot.send_message(TARGET_ID, random.choice(AFFS))
 
 async def send_motivation(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(ADMIN_ID, random.choice(MOTS))
+    await context.bot.send_message(TARGET_ID, random.choice(MOTS))
 
 async def send_weekly_recap(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(ADMIN_ID, WEEKLY)
+    await context.bot.send_message(TARGET_ID, WEEKLY)
 
 # ===== TELEGRAM BOT LOOP =====
 async def run_bot():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # command handlers
+    # command handlers (all registered inside run_bot so 'app' is in scope)
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("affirmation", cmd_affirmation))
     app.add_handler(CommandHandler("motivate", cmd_motivate))
-
-    # === Temporary command to get chat ID ===
-    async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = update.effective_chat.id
-        await context.bot.send_message(chat_id=chat_id, text=f"Chat ID: {chat_id}")
-
     app.add_handler(CommandHandler("getid", cmd_getid))
+    app.add_handler(CommandHandler("broadcast", cmd_broadcast))
 
-    # schedules
+    # schedules (requires python-telegram-bot[job-queue])
     jq = app.job_queue
     jq.run_daily(send_affirmation, time=time(6, 0, tzinfo=TZ), name="daily_aff")
     jq.run_daily(send_motivation, time=time(13, 0, tzinfo=TZ), name="daily_motivate")
@@ -82,14 +98,6 @@ async def run_bot():
     await app.start()
     await app.updater.start_polling()
     await asyncio.Event().wait()
-
-# Quick broadcast test (temporary)
-async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    channel_id = int(os.environ["FOGWALKERS_TIER3_ID"])
-    await context.bot.send_message(chat_id=channel_id, text="🕯️ Test broadcast from Midnight.")
-    await update.message.reply_text("✅ Sent to Tier-3 channel.")
-
-app.add_handler(CommandHandler("broadcast", cmd_broadcast))
 
 # ===== HEALTHCHECK WEB SERVER (for Render Web Service) =====
 async def run_web():
