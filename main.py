@@ -63,9 +63,10 @@ async def run_bot():
 # === Temporary command to get chat ID ===
 async def cmd_getid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await update.message.reply_text(f"Chat ID: {chat_id}")
+    await context.bot.send_message(chat_id=chat_id, text=f"Chat ID: {chat_id}")
 
 app.add_handler(CommandHandler("getid", cmd_getid))
+
 
     # schedules
     jq = app.job_queue
